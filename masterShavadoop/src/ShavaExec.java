@@ -45,8 +45,10 @@ public class ShavaExec {
 	private int getInputStream(boolean echo, Process p) throws IOException {
 		int error = 1;
 		String s = null;
-		BufferedReader stdInput = new BufferedReader(new InputStreamReader(p.getInputStream()));
-		BufferedReader stdError = new BufferedReader(new InputStreamReader(p.getErrorStream()));
+		BufferedReader stdInput = new BufferedReader(new InputStreamReader(
+				p.getInputStream()));
+		BufferedReader stdError = new BufferedReader(new InputStreamReader(
+				p.getErrorStream()));
 		while ((s = stdInput.readLine()) != null) {
 			if (echo)
 				System.out.println(s);
@@ -58,6 +60,24 @@ public class ShavaExec {
 			error = 0;
 		}
 		return error;
+	}
+
+	public String getInputStream(Process p) throws IOException {
+		StringBuffer result = new StringBuffer();
+		String s = null;
+		BufferedReader stdInput = new BufferedReader(new InputStreamReader(
+				p.getInputStream()));
+		BufferedReader stdError = new BufferedReader(new InputStreamReader(
+				p.getErrorStream()));
+		while ((s = stdInput.readLine()) != null) {
+			result.append(s);
+		}
+		while ((s = stdError.readLine()) != null) {
+			System.err.println(s);
+			result = null;
+		}
+		return result.toString();
+
 	}
 
 	public int processCmd(String[] cmd, boolean echo, boolean wait) {
