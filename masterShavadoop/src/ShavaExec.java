@@ -45,10 +45,8 @@ public class ShavaExec {
 	private int getInputStream(boolean echo, Process p) throws IOException {
 		int error = 1;
 		String s = null;
-		BufferedReader stdInput = new BufferedReader(new InputStreamReader(
-				p.getInputStream()));
-		BufferedReader stdError = new BufferedReader(new InputStreamReader(
-				p.getErrorStream()));
+		BufferedReader stdInput = new BufferedReader(new InputStreamReader(p.getInputStream()));
+		BufferedReader stdError = new BufferedReader(new InputStreamReader(p.getErrorStream()));
 		while ((s = stdInput.readLine()) != null) {
 			if (echo)
 				System.out.println(s);
@@ -65,10 +63,8 @@ public class ShavaExec {
 	public String getInputStream(Process p) throws IOException {
 		StringBuffer result = new StringBuffer();
 		String s = null;
-		BufferedReader stdInput = new BufferedReader(new InputStreamReader(
-				p.getInputStream()));
-		BufferedReader stdError = new BufferedReader(new InputStreamReader(
-				p.getErrorStream()));
+		BufferedReader stdInput = new BufferedReader(new InputStreamReader(p.getInputStream()));
+		BufferedReader stdError = new BufferedReader(new InputStreamReader(p.getErrorStream()));
 		while ((s = stdInput.readLine()) != null) {
 			result.append(s);
 		}
@@ -116,8 +112,8 @@ public class ShavaExec {
 
 	}
 
-	public Process processSxCmd(String ordi, String filename) {
-		String javaCmd = javaJar() + getSlaveJar() + " -SX " + filename;
+	public Process processSxCmd(String ordi, String id) {
+		String javaCmd = javaJar() + getSlaveJar() + " -SX " + id;
 		String[] cmd = getSshCmd(javaCmd, ordi);
 		return processCmd(cmd);
 	}

@@ -1,9 +1,11 @@
 public class ShavaProcess {
 	private String name;
 	private Process process;
+	private String id;
 
-	ShavaProcess(String name, Process process) {
+	ShavaProcess(String id, String name, Process process) {
 		this.setName(name);
+		this.setId(id);
 		this.process = process;
 	}
 
@@ -21,6 +23,14 @@ public class ShavaProcess {
 
 	public Process getProcess() {
 		return this.process;
+	}
+
+	public String getId() {
+		return id;
+	}
+
+	public void setId(String id) {
+		this.id = id;
 	}
 
 }

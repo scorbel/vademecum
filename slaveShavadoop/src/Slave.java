@@ -1,6 +1,9 @@
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintWriter;
 
 import data.MappedData;
 import data.MappedDataList;
@@ -16,8 +19,7 @@ public class Slave {
 		// name = InetAddress.getLocalHost().getHostName();
 	}
 
-	private MappedDataList splitBlockFromFile(String filename)
-			throws IOException {
+	private MappedDataList splitBlockFromFile(String filename) throws IOException {
 		BufferedReader reader = new BufferedReader(new FileReader(filename));
 		String line;
 		MappedDataList dataList = new MappedDataList();
@@ -29,10 +31,12 @@ public class Slave {
 		return dataList;
 	}
 
-	private void sxToUmx(String filename) throws IOException {
-		MappedDataList dataList = splitBlockFromFile(MappedData.getDataDir()
-				+ "/" + filename);
-		System.out.print(dataList.toString());
+	private void sxToUmx(String id) throws IOException {
+		MappedDataList dataList = splitBlockFromFile(MappedData.getSxFullNameFile(id));
+		PrintWriter writer = new PrintWriter(new BufferedWriter(new FileWriter(MappedData.getUmxFullNameFile(id))));
+		writer.println(dataList);
+		writer.close();
+		System.out.print(dataList.getKeys());
 
 	}
 
@@ -49,7 +53,7 @@ public class Slave {
 			message += sep + task.toString();
 			sep = "|";
 		}
-		message += "<filename>";
+		message += "] <id>";
 		System.err.println("Illegal arguments, Usage " + message);
 	}
 
@@ -60,12 +64,12 @@ public class Slave {
 		if (args.length < 2) {
 			printUsage();
 		} else {
-			String filename = args[1];
+			String id = args[1];
 			Slave slave = new Slave();
 			switch (args[0]) {
-			case "SX":
+			case "-SX":
 				try {
-					slave.sxToUmx(filename);
+					slave.sxToUmx(id);
 				} catch (IOException e) {
 					e.printStackTrace();
 					System.err.println("SX TO UMX failed");

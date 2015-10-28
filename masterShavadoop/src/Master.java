@@ -5,7 +5,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
 
 import data.MappedData;
@@ -16,20 +15,12 @@ public class Master {
 	private static String RUNNING_MACHINES_FILE = "runningMachines.txt";
 	private static String INPUT_FILE = "input.txt";
 	private static String OS = null;
-	private static String SX_SUFFIXE = "SX";
-	private static String UMX_SUFFIXE = "UMX";
-	private static String TXT_EXT = ".txt";
 
-	private HashMap<String, ShavaProcess> umxMachine = new HashMap<String, ShavaProcess>(); // Dictionnaire
-																							// identifiant
-																							// UMX
-																							// ->
-																							// (machine,process)
-	private HashMap<String, ArrayList<String>> keyUmx = new HashMap<String, ArrayList<String>>(); // Dictionnaire
-																									// mot
-																									// ->
-																									// {identifiant
-																									// machine}
+	// Dictionnaire identifiant UMX-> (machine,process)
+	private HashMap<String, ShavaProcess> umxMachine = new HashMap<String, ShavaProcess>();
+
+	// Dictionnaire identifiant mot-> {(machine,process)}
+	private HashMap<String, ArrayList<String>> keyUmx = new HashMap<String, ArrayList<String>>();
 
 	public Master() {
 		getOsName();
@@ -55,46 +46,21 @@ public class Master {
 
 	}
 
-	static String getTimestamp() {
-
-		// java.util.Date date = new java.util.Date();
-		// return new java.sql.Timestamp(date.getTime()).toString();
-		return Long.toString(new Date().getTime());
-	}
-
 	public String getMachinesNameFile() {
-		return getUserDir() + "/" + MACHINES_FILE;
+		return MappedData.getDataDir() + "/" + MACHINES_FILE;
 	}
 
 	public String getRunnigMachinesNameFile() {
-		return getUserDir() + "/" + RUNNING_MACHINES_FILE;
+		return MappedData.getDataDir() + "/" + RUNNING_MACHINES_FILE;
 	}
 
 	public String getInputFilename() {
-		return getUserDir() + "/" + INPUT_FILE;
-	}
-
-	public String getSxFullNameFile() {
-		return MappedData.getDataDir() + "/" + getSxNameFile();
-	}
-
-	public String getSxNameFile() {
-		return SX_SUFFIXE + getTimestamp() + TXT_EXT;
-	}
-
-	public String getId(String sxFilename) {
-		return sxFilename.substring(SX_SUFFIXE.length(), sxFilename.length()
-				- TXT_EXT.length());
-	}
-
-	public String getSxNameFile(String id) {
-		return UMX_SUFFIXE + id + TXT_EXT;
+		return MappedData.getDataDir() + "/" + INPUT_FILE;
 	}
 
 	public void getRunningMachines(String filename) throws IOException {
 		BufferedReader reader = new BufferedReader(new FileReader(filename));
-		PrintWriter writer = new PrintWriter(new BufferedWriter(new FileWriter(
-				getRunnigMachinesNameFile())));
+		PrintWriter writer = new PrintWriter(new BufferedWriter(new FileWriter(getRunnigMachinesNameFile())));
 
 		ShavaExec sexec = new ShavaExec();
 		String line;
@@ -156,8 +122,7 @@ public class Master {
 
 	public String getFirstAvailableSlave() throws IOException {
 		String result = null;
-		BufferedReader reader = new BufferedReader(new FileReader(
-				getRunnigMachinesNameFile()));
+		BufferedReader reader = new BufferedReader(new FileReader(getRunnigMachinesNameFile()));
 		String line;
 		while ((line = reader.readLine()) != null && result == null) {
 			String ordi = line.trim();
@@ -174,20 +139,40 @@ public class Master {
 
 	}
 
+	private void addToKeyUmx(ShavaProcess sp, String umxResult) {
+		if (umxResult != null) {
+			String[] tokens = umxResult.split("\n");
+			for (String token : tokens) {
+				ArrayList<String> umxList = keyUmx.get(token);
+				if (umxList == null) {
+					umxList = new ArrayList<String>();
+				}
+				umxList.add(sp.getId());
+			}
+		}
+	}
+
+	/**
+	 * Etape 2 Pour chaque bloc Pour chaque bloc du fichier d'entrée, création
+	 * d'un fichier SX<id>.txt Le fichier est envoyé pour traitement sur la
+	 * première machine disponible en vue de produite un fichier UMX Le process
+	 * correspondant est stocké dans le dictionnaire UmxMachine l'identifiant is
+	 * étant la clé filename : Fichier contenant le texte à traiter
+	 */
 	public void sxToUmx(String filename) throws IOException {
 		BufferedReader reader = new BufferedReader(new FileReader(filename));
 		String line;
-		if ((line = reader.readLine()) != null) {
+		while ((line = reader.readLine()) != null) {
+			// introduire un splitter
 			line = line.trim();
-			PrintWriter writer = new PrintWriter(new BufferedWriter(
-					new FileWriter(getSxFullNameFile())));
+			String id = MappedData.getId();
+			PrintWriter writer = new PrintWriter(new BufferedWriter(new FileWriter(MappedData.getSxFullNameFile(id))));
 			writer.println(line);
 			writer.close();
 			String ordi = getFirstAvailableSlave();
 			ShavaExec sexec = new ShavaExec();
-			Process p = sexec.processSxCmd(ordi, getSxNameFile());
-			String id = getId(getSxNameFile());
-			umxMachine.put(id, new ShavaProcess(ordi, p));
+			Process p = sexec.processSxCmd(ordi, id);
+			umxMachine.put(id, new ShavaProcess(id, ordi, p));
 		}
 		reader.close();
 
@@ -198,7 +183,8 @@ public class Master {
 		for (ShavaProcess sp : umxMachine.values()) {
 			sp.getProcess().waitFor();
 			ShavaExec sexec = new ShavaExec();
-			sexec.getInputStream(sp.getProcess());
+			String umxResult = sexec.getInputStream(sp.getProcess());
+			addToKeyUmx(sp, umxResult);
 		}
 	}
 
