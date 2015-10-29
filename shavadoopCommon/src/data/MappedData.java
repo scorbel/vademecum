@@ -5,20 +5,30 @@ import java.util.Date;
 public class MappedData implements Comparable<MappedData> {
 
 	private static String DATA = "data";
-	private static String SX_SUFFIXE = "SX";
-	private static String UMX_SUFFIXE = "UMX";
 	private static String TXT_EXT = ".txt";
+
+	public enum Task {
+		SX, UMX, SMX, RMX
+	};
 
 	public static String getDataDir() {
 		return System.getProperty("user.home") + "/" + DATA;
 	}
 
 	public static String getSxNameFile(String sId) {
-		return getShaNameFile(sId, SX_SUFFIXE, null);
+		return getShaNameFile(sId, Task.SX.toString(), null);
 	}
 
 	public static String getUmxNameFile(String sId) {
-		return getShaNameFile(sId, UMX_SUFFIXE, null);
+		return getShaNameFile(sId, Task.UMX.toString(), null);
+	}
+
+	public static String getRmxNameFile(String sId) {
+		return getShaNameFile(sId, Task.RMX.toString(), null);
+	}
+
+	public static String getSmxNameFile(String sId) {
+		return getShaNameFile(sId, Task.SMX.toString(), null);
 	}
 
 	public static String getShaNameFile(String sId, String suffixe, String prefixe) {
@@ -35,6 +45,14 @@ public class MappedData implements Comparable<MappedData> {
 
 	public static String getUmxFullNameFile(String id) {
 		return getDataDir() + "/" + getUmxNameFile(id);
+	}
+
+	public static String getSmxFullNameFile(String id) {
+		return getDataDir() + "/" + getSmxNameFile(id);
+	}
+
+	public static String getRmxFullNameFile(String id) {
+		return getDataDir() + "/" + getRmxNameFile(id);
 	}
 
 	public static String getTimestamp() {
@@ -80,6 +98,15 @@ public class MappedData implements Comparable<MappedData> {
 
 	public String toString() {
 		return mot + " " + counter;
+	}
+
+	public static MappedData createFrom(String str) {
+		String[] tokens = str.split("");
+		MappedData mData = new MappedData(tokens[0]);
+		if (tokens.length >= 2) {
+			mData.setCounter(Integer.parseInt(tokens[1]));
+		}
+		return mData;
 	}
 
 }

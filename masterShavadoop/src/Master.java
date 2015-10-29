@@ -12,12 +12,13 @@ import data.MappedData;
 public class Master {
 
 	private static String MACHINES_FILE = "machines.txt";
-	private static String RUNNING_MACHINES_FILE = "runningMachines.txt";
+	static String RUNNING_MACHINES_FILE = "runningMachines.txt";
 	private static String INPUT_FILE = "input.txt";
 	private static String OS = null;
+	private ShavaManager manager = new ShavaManager();
 
 	// Dictionnaire identifiant UMX-> (machine,process)
-	private HashMap<String, ShavaProcess> umxMachine = new HashMap<String, ShavaProcess>();
+	private HashMap<String, String> umxMachine = new HashMap<String, String>();
 
 	// Dictionnaire identifiant mot-> {(machine,process)}
 	private HashMap<String, ArrayList<String>> keyUmx = new HashMap<String, ArrayList<String>>();
@@ -50,31 +51,12 @@ public class Master {
 		return MappedData.getDataDir() + "/" + MACHINES_FILE;
 	}
 
-	public String getRunnigMachinesNameFile() {
-		return MappedData.getDataDir() + "/" + RUNNING_MACHINES_FILE;
-	}
-
 	public String getInputFilename() {
 		return MappedData.getDataDir() + "/" + INPUT_FILE;
 	}
 
-	public void getRunningMachines(String filename) throws IOException {
-		BufferedReader reader = new BufferedReader(new FileReader(filename));
-		PrintWriter writer = new PrintWriter(new BufferedWriter(new FileWriter(getRunnigMachinesNameFile())));
-
-		ShavaExec sexec = new ShavaExec();
-		String line;
-		while ((line = reader.readLine()) != null) {
-			String ordi = line.trim();
-			String[] cmd = sexec.getSshCmd("hostname", ordi);
-			if (sexec.processCmd(cmd, false, true) == 1) {
-				writer.println(ordi);
-			}
-
-		}
-		reader.close();
-		writer.close();
-
+	private int getRunningMachines(String machinesNameFile) {
+		return manager.getRunningMachines(filename);
 	}
 
 	public void callFirstmachine(String filename) throws IOException {
@@ -107,41 +89,20 @@ public class Master {
 
 	}
 
-	public boolean umxMachineContains(String ordi) {
-		boolean result = false;
-		if (umxMachine.values().size() > 0) {
-			for (ShavaProcess process : umxMachine.values()) {
-				if (process.getName().equals(ordi)) {
-					result = true;
-					break;
-				}
-			}
-		}
-		return result;
-	}
-
-	public String getFirstAvailableSlave() throws IOException {
-		String result = null;
-		BufferedReader reader = new BufferedReader(new FileReader(getRunnigMachinesNameFile()));
-		String line;
-		while ((line = reader.readLine()) != null && result == null) {
-			String ordi = line.trim();
-			if (!umxMachineContains(ordi)) {
-				result = ordi;
-			}
-		}
-		if (result == null) {
-			// Take the first machine in umxMachine
-			result = umxMachine.values().iterator().next().getName();
-		}
-		reader.close();
-		return (result);
-
-	}
-
+	/**
+	 * Pour chaque mot du texte on ajoute un identifiant umx au dictionnaire
+	 * keyUmx
+	 * 
+	 * @param sp
+	 *            Process identifiant le fichier UMX
+	 * 
+	 * @param umxResult
+	 *            Texte contenant par ligne un mot à ajouter au dictionnaire
+	 *            keyUmx
+	 */
 	private void addToKeyUmx(ShavaProcess sp, String umxResult) {
 		if (umxResult != null) {
-			String[] tokens = umxResult.split("\n");
+			String[] tokens = umxResult.split(System.lineSeparator());
 			for (String token : tokens) {
 				ArrayList<String> umxList = keyUmx.get(token);
 				if (umxList == null) {
@@ -153,39 +114,64 @@ public class Master {
 	}
 
 	/**
-	 * Etape 2 Pour chaque bloc Pour chaque bloc du fichier d'entrée, création
-	 * d'un fichier SX<id>.txt Le fichier est envoyé pour traitement sur la
-	 * première machine disponible en vue de produite un fichier UMX Le process
-	 * correspondant est stocké dans le dictionnaire UmxMachine l'identifiant is
-	 * étant la clé filename : Fichier contenant le texte à traiter
+	 * Pour chaque bloc du fichier d'entrée, création d'un fichier SX<id>.txt Le
+	 * fichier est envoyé pour traitement sur la première machine disponible en
+	 * vue de produite un fichier UMX. On enregistre l'id de l'UMX dans le
+	 * dictionnaire umxMachine
+	 * 
+	 * @param filename
+	 *            Fichier contenant le texte à traiter
 	 */
 	public void sxToUmx(String filename) throws IOException {
 		BufferedReader reader = new BufferedReader(new FileReader(filename));
 		String line;
 		while ((line = reader.readLine()) != null) {
-			// introduire un splitter
+			// TODO introduire un splitter
 			line = line.trim();
+			if (line.length() == 0)
+				continue;
 			String id = MappedData.getId();
 			PrintWriter writer = new PrintWriter(new BufferedWriter(new FileWriter(MappedData.getSxFullNameFile(id))));
 			writer.println(line);
 			writer.close();
-			String ordi = getFirstAvailableSlave();
-			ShavaExec sexec = new ShavaExec();
-			Process p = sexec.processSxCmd(ordi, id);
-			umxMachine.put(id, new ShavaProcess(id, ordi, p));
+			String ordi = manager.pushJob(id, null, MappedData.Task.SX);
+			this.umxMachine.put(id, ordi);
+
 		}
 		reader.close();
 
 	}
 
+	public void umxToSmx() {
+		for (String key : this.keyUmx.keySet()) {
+			String ordi = manager.pushJob(key, this.keyUmx.get(key), MappedData.Task.UMX);
+		}
+	}
+
 	public void AM() throws IOException, InterruptedException {
 		sxToUmx(getInputFilename());
-		for (ShavaProcess sp : umxMachine.values()) {
+		while (!manager.stackEmpty()) {
+			ShavaProcess sp = manager.popJob();
 			sp.getProcess().waitFor();
 			ShavaExec sexec = new ShavaExec();
 			String umxResult = sexec.getInputStream(sp.getProcess());
-			addToKeyUmx(sp, umxResult);
+			if (umxResult == null) {
+				System.err.println("SX TO UMX failed for " + sp.getSlaveName());
+			} else {
+				addToKeyUmx(sp, umxResult);
+			}
 		}
+		umxToSmx();
+		while (!manager.stackEmpty()) {
+			ShavaProcess sp = manager.popJob();
+			sp.getProcess().waitFor();
+			ShavaExec sexec = new ShavaExec();
+			String smxResult = sexec.getInputStream(sp.getProcess());
+			if (smxResult == null) {
+				System.err.println("UMX TO SMX failed for " + sp.getSlaveName() + " word " + sp.getId());
+			}
+		}
+
 	}
 
 	/**
@@ -194,9 +180,13 @@ public class Master {
 	public static void main(String[] args) {
 		Master master = new Master();
 		try {
-			master.getRunningMachines(master.getMachinesNameFile());
-			// master.callFirstmachine(master.getRunnigMachinesNameFile());
-			master.AM();
+			int countMachine = master.getRunningMachines(master.getMachinesNameFile());
+			if (countMachine == 00) {
+				System.err.println("No slave available");
+			} else {
+				// master.callFirstmachine(master.getRunnigMachinesNameFile());
+				master.AM();
+			}
 
 		} catch (Exception e) {
 			// TODO Auto-generated catch block

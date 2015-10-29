@@ -1,6 +1,7 @@
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
 
 public class ShavaExec {
 	private static String SLAVE_PROJECT_NAME = "slaveShavadoop/bin";
@@ -30,14 +31,10 @@ public class ShavaExec {
 		return result;
 	}
 
-	public Process processCmd(String[] cmd) {
+	public Process processCmd(String[] cmd) throws IOException {
 		Process p = null;
-		try {
-			ProcessBuilder pb = new ProcessBuilder(cmd);
-			p = pb.start();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+		ProcessBuilder pb = new ProcessBuilder(cmd);
+		p = pb.start();
 		return p;
 
 	}
@@ -112,8 +109,18 @@ public class ShavaExec {
 
 	}
 
-	public Process processSxCmd(String ordi, String id) {
+	public Process processSxCmd(String ordi, String id) throws IOException {
 		String javaCmd = javaJar() + getSlaveJar() + " -SX " + id;
+		String[] cmd = getSshCmd(javaCmd, ordi);
+		return processCmd(cmd);
+	}
+
+	public Process processUmxCmd(String ordi, String key, ArrayList<String> idList) throws IOException {
+		String javaCmd = javaJar() + getSlaveJar() + " -UMX";
+		javaCmd += " " + key;
+		for (String id : idList) {
+			javaCmd += " " + id;
+		}
 		String[] cmd = getSshCmd(javaCmd, ordi);
 		return processCmd(cmd);
 	}
