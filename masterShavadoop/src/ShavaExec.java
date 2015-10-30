@@ -122,6 +122,7 @@ public class ShavaExec {
 			javaCmd += " " + id;
 		}
 		String[] cmd = getSshCmd(javaCmd, ordi);
+		Master.logger.info(javaCmd);
 		return processCmd(cmd);
 	}
 

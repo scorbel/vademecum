@@ -46,6 +46,7 @@ public class Slave {
 			MappedDataList mappedDataList = MappedDataList.createAndFilterFrom(reader, key);
 			if (mappedDataList != null) {
 				writer.write(mappedDataList.toString());
+				writer.write(System.lineSeparator());
 			}
 			reader.close();
 		}

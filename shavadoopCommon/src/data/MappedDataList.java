@@ -29,13 +29,14 @@ public class MappedDataList {
 	}
 
 	public String toString() {
-		String result = "";
+		StringBuilder stringBuilder = new StringBuilder();
 		String sep = "";
 		for (MappedData mdata : data) {
-			result += sep + mdata.toString();
+			stringBuilder.append(sep);
+			stringBuilder.append(mdata.toString());
 			sep = System.lineSeparator();
 		}
-		return result;
+		return stringBuilder.toString();
 	}
 
 	public String getKeys() {
@@ -47,7 +48,7 @@ public class MappedDataList {
 		String sep = "";
 		for (String word : wordMap.keySet()) {
 			result += sep + word;
-			sep = System.lineSeparator();
+			sep = " ";
 		}
 		return result;
 

@@ -4,6 +4,7 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Stack;
@@ -88,6 +89,8 @@ public class ShavaManager {
 		pStack.push(sp);
 		slaves.put(ordi, pStack);
 		shavaStack.push(sp);
+		String message = MessageFormat.format("job {0} {1} on {2} pushed", taskType.toString(), id, ordi);
+		Master.logger.info(message);
 		return ordi;
 	}
 
@@ -95,6 +98,9 @@ public class ShavaManager {
 		ShavaProcess sp = shavaStack.pop();
 		Stack<ShavaProcess> pStack = slaves.get(sp.getSlaveName());
 		pStack.pop();
+		String message = MessageFormat.format("job {0} {1} on {2} poped", sp.getTaskType().toString(), sp.getId(),
+				sp.getSlaveName());
+		Master.logger.info(message);
 		return sp;
 	}
 

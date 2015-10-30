@@ -7,10 +7,14 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import data.MappedData;
 
 public class Master {
 
+	public static Logger logger = LoggerFactory.getLogger("masterShavadoop.src.Master");
 	private static String MACHINES_FILE = "machines.txt";
 	static String RUNNING_MACHINES_FILE = "runningMachines.txt";
 	private static String INPUT_FILE = "input.txt";
@@ -55,8 +59,8 @@ public class Master {
 		return MappedData.getDataDir() + "/" + INPUT_FILE;
 	}
 
-	private int getRunningMachines(String machinesNameFile) {
-		return manager.getRunningMachines(filename);
+	private int getRunningMachines(String machinesNameFile) throws IOException {
+		return manager.getRunningMachines(machinesNameFile);
 	}
 
 	public void callFirstmachine(String filename) throws IOException {
@@ -102,14 +106,22 @@ public class Master {
 	 */
 	private void addToKeyUmx(ShavaProcess sp, String umxResult) {
 		if (umxResult != null) {
-			String[] tokens = umxResult.split(System.lineSeparator());
+			String[] tokens = umxResult.split(" ");
 			for (String token : tokens) {
 				ArrayList<String> umxList = keyUmx.get(token);
 				if (umxList == null) {
 					umxList = new ArrayList<String>();
 				}
 				umxList.add(sp.getId());
+				keyUmx.put(token, umxList);
 			}
+		}
+	}
+
+	private void keyUmxToString() {
+		String result = "";
+		for (String key : this.keyUmx.keySet()) {
+			System.out.println(key);
 		}
 	}
 
@@ -126,6 +138,7 @@ public class Master {
 		BufferedReader reader = new BufferedReader(new FileReader(filename));
 		String line;
 		while ((line = reader.readLine()) != null) {
+			logger.info(line);
 			// TODO introduire un splitter
 			line = line.trim();
 			if (line.length() == 0)
@@ -152,21 +165,21 @@ public class Master {
 		sxToUmx(getInputFilename());
 		while (!manager.stackEmpty()) {
 			ShavaProcess sp = manager.popJob();
+			String umxResult = sp.getOutputString();
 			sp.getProcess().waitFor();
-			ShavaExec sexec = new ShavaExec();
-			String umxResult = sexec.getInputStream(sp.getProcess());
 			if (umxResult == null) {
 				System.err.println("SX TO UMX failed for " + sp.getSlaveName());
 			} else {
 				addToKeyUmx(sp, umxResult);
 			}
 		}
+		keyUmxToString();
+
 		umxToSmx();
 		while (!manager.stackEmpty()) {
 			ShavaProcess sp = manager.popJob();
+			String smxResult = sp.getOutputString();
 			sp.getProcess().waitFor();
-			ShavaExec sexec = new ShavaExec();
-			String smxResult = sexec.getInputStream(sp.getProcess());
 			if (smxResult == null) {
 				System.err.println("UMX TO SMX failed for " + sp.getSlaveName() + " word " + sp.getId());
 			}

@@ -1,7 +1,5 @@
 package data;
 
-import java.util.Date;
-
 public class MappedData implements Comparable<MappedData> {
 
 	private static String DATA = "data";
@@ -56,7 +54,7 @@ public class MappedData implements Comparable<MappedData> {
 	}
 
 	public static String getTimestamp() {
-		return Long.toString(new Date().getTime());
+		return Long.toString(System.nanoTime());
 	}
 
 	public static String getId() {
@@ -101,7 +99,7 @@ public class MappedData implements Comparable<MappedData> {
 	}
 
 	public static MappedData createFrom(String str) {
-		String[] tokens = str.split("");
+		String[] tokens = str.split(" ");
 		MappedData mData = new MappedData(tokens[0]);
 		if (tokens.length >= 2) {
 			mData.setCounter(Integer.parseInt(tokens[1]));
