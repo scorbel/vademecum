@@ -73,6 +73,9 @@ public class ShavaManager {
 			case UMX:
 				p = sexec.processUmxCmd(ordi, id, argList);
 				break;
+			case SMX:
+				p = sexec.processSmxCmd(ordi, id);
+				break;
 			default:
 				break;
 			}
@@ -98,7 +101,7 @@ public class ShavaManager {
 		ShavaProcess sp = shavaStack.pop();
 		Stack<ShavaProcess> pStack = slaves.get(sp.getSlaveName());
 		pStack.pop();
-		String message = MessageFormat.format("job {0} {1} on {2} poped", sp.getTaskType().toString(), sp.getId(),
+		String message = MessageFormat.format("job {0} {1} on {2} popped", sp.getTaskType().toString(), sp.getId(),
 				sp.getSlaveName());
 		Master.logger.info(message);
 		return sp;

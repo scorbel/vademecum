@@ -1,5 +1,8 @@
 package data;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+
 public class MappedData implements Comparable<MappedData> {
 
 	private static String DATA = "data";
@@ -62,7 +65,7 @@ public class MappedData implements Comparable<MappedData> {
 	}
 
 	private String mot = new String();
-	private Integer counter = 1;
+	private Integer counter = 0;
 
 	public MappedData(String mot, Integer counter) {
 		this.setMot(mot);
@@ -105,6 +108,21 @@ public class MappedData implements Comparable<MappedData> {
 			mData.setCounter(Integer.parseInt(tokens[1]));
 		}
 		return mData;
+	}
+
+	public static MappedData createAndSumFrom(String key, BufferedReader reader) throws IOException {
+		MappedData result = new MappedData(key);
+		String line = null;
+		int sum = 0;
+		while ((line = reader.readLine()) != null) {
+			line = line.trim();
+			if (line.length() > 0) {
+				MappedData mData = MappedData.createFrom(line);
+				sum += mData.getCounter();
+			}
+		}
+		result.setCounter(sum);
+		return result;
 	}
 
 }

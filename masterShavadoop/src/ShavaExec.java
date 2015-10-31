@@ -122,7 +122,13 @@ public class ShavaExec {
 			javaCmd += " " + id;
 		}
 		String[] cmd = getSshCmd(javaCmd, ordi);
-		Master.logger.info(javaCmd);
+		// Master.logger.info(javaCmd);
+		return processCmd(cmd);
+	}
+
+	public Process processSmxCmd(String ordi, String key) throws IOException {
+		String javaCmd = javaJar() + getSlaveJar() + " -SMX " + key;
+		String[] cmd = getSshCmd(javaCmd, ordi);
 		return processCmd(cmd);
 	}
 

@@ -16,7 +16,7 @@ public class MappedDataList {
 	public void addLine(String line) {
 		String tokens[] = line.split(Separator);
 		for (String token : tokens) {
-			data.add(new MappedData(token));
+			data.add(new MappedData(token, 1));
 		}
 	}
 

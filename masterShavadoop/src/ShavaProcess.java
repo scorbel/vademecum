@@ -1,5 +1,4 @@
 import java.io.IOException;
-import java.text.MessageFormat;
 
 import data.MappedData;
 
@@ -65,8 +64,8 @@ public class ShavaProcess {
 	public String getOutputString() throws IOException {
 		ShavaExec sexec = new ShavaExec();
 		String output = sexec.getInputStream(process);
-		String message = MessageFormat.format(" {0} {1}", id, output);
-		Master.logger.info(message);
+		// String message = MessageFormat.format(" {0} {1}", id, output);
+		// Master.logger.info(message);
 		return output;
 	}
 

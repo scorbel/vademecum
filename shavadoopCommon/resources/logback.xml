@@ -8,31 +8,41 @@
 <!--    http://www.qos.ch/shop/products/professionalSupport         -->
 <!--                                                                -->
 <!-- <configuration debug="true"> -->
-<configuration scan="true" scanPeriod="30 seconds" debug="true">
-	<property name="LOG_DIR" value="C:/Users/Sophie/log"/>
-    <contextListener class="ch.qos.logback.classic.jul.LevelChangePropagator">
-        <resetJUL>true</resetJUL>
-    </contextListener>
-    <appender name="console" class="ch.qos.logback.core.ConsoleAppender">
-        <encoder>
-            <pattern>%-5level %d{yyyy-MM-dd}T%d{HH:mm:ss.SSS}  %-36logger{36} %msg%n%ex</pattern>
-        </encoder>
-    </appender>
-
- 
-    
-    <appender name="FILE_DEBUG" class="ch.qos.logback.core.FileAppender">
-      <file>${LOG_DIR}/shava.log</file>
-      <encoder>
-        <pattern>%-5level %d{yyyy-MM-dd}T%d{HH:mm:ss.SSS}  %-5(%X{USER} %X{CLIENT}) %-36logger{36} %msg%n%ex</pattern>
-      </encoder>
-    </appender>
-    
-    <logger name="masterShavadoop.src.Master" level="INFO"/>
-    
-    <root level="INFO">
-      <appender-ref ref="FILE_DEBUG"/>    
-      <appender-ref ref="console"/>
-    </root>
+<configuration scan="true" scanPeriod="30 seconds">
+  <property name="LOG_DIR" value="C:/Users/Sophie/log"/>
+  <contextListener class="ch.qos.logback.classic.jul.LevelChangePropagator">
+    <resetJUL>true</resetJUL>
+  </contextListener>
+  <statusListener class="ch.qos.logback.core.status.NopStatusListener"/>
+  <!-- appender name="console" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>%-5level %d{yyyy-MM-dd}T%d{HH:mm:ss.SSS}  %-36logger{36} %caller{1} %msg%n%ex</pattern>
+    </encoder>
+  </appender-->
+  
+  
+  
+  <appender name="FILE_DEBUG" class="ch.qos.logback.core.FileAppender">
+    <file>${LOG_DIR}/shava.log</file>
+    <encoder>
+      <pattern>%-5level %d{yyyy-MM-dd}T%d{HH:mm:ss.SSS}  %-36logger{36} %caller{1} %msg%n%ex</pattern>
+    </encoder>
+  </appender>
+  
+    <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+    <file>${LOG_DIR}/shava.log</file>
+    <encoder>
+      <pattern>%-5level %d{yyyy-MM-dd}T%d{HH:mm:ss.SSS}  %-36logger{36} %msg%n%ex</pattern>
+    </encoder>
+  </appender>
+  
+  
+  <logger name="masterShavadoop.src.Master" level="INFO"/>
+  <logger name="slaveShavadoop.src.Slave" level="INFO"/>
+  
+  <root level="WARN">
+    <appender-ref ref="FILE"/>    
+    <appender-ref ref="console"/>
+  </root>
     
 </configuration>
