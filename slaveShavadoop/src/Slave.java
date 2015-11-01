@@ -41,6 +41,8 @@ public class Slave {
 		}
 		this.splitterType = MappedData.SplitterType
 				.valueOf(properties.getProperty("splitMode", MappedData.SplitterType.LINE.toString()));
+		String message = MessageFormat.format("Split type {0}", splitterType.name());
+		logger.info(message);
 
 	}
 
@@ -124,9 +126,10 @@ public class Slave {
 	// fichier
 	private synchronized void umxToSmx(String key, ArrayList<String> umxList) throws IOException {
 		PrintWriter writer = new PrintWriter(new BufferedWriter(new FileWriter(MappedData.getSmxFullNameFile(key))));
+		MappedDataList mappedDataList = null;
 		for (String umx : umxList) {
 			BufferedReader reader = new BufferedReader(new FileReader(MappedData.getUmxFullNameFile(umx)));
-			MappedDataList mappedDataList = MappedDataList.createAndFilterFrom(reader, key);
+			mappedDataList = MappedDataList.createAndFilterFrom(reader, key);
 			if (mappedDataList != null) {
 				writer.write(mappedDataList.toString());
 				writer.write(System.lineSeparator());
@@ -134,7 +137,8 @@ public class Slave {
 			reader.close();
 		}
 		writer.close();
-		String message = MessageFormat.format("Shuffling {0}", key);
+		String message = MessageFormat.format("Shuffling {0} count {1}", key,
+				mappedDataList == null ? 0 : mappedDataList.size());
 		logger.info(message);
 	}
 

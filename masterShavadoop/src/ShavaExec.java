@@ -6,6 +6,9 @@ import java.util.ArrayList;
 public class ShavaExec {
 	private static String SLAVE_PROJECT_NAME = "slaveShavadoop/bin";
 	private static String LOGIN = "scorbel";
+	StreamGobbler errorGobbler;
+	StreamGobbler outputGobbler;
+	private Process p = null;
 
 	private static String getSlaveJar() {
 		return Master.getUserDir() + "/../" + SLAVE_PROJECT_NAME + "/slave.jar";
@@ -32,9 +35,12 @@ public class ShavaExec {
 	}
 
 	public Process processCmd(String[] cmd) throws IOException {
-		Process p = null;
 		ProcessBuilder pb = new ProcessBuilder(cmd);
 		p = pb.start();
+		errorGobbler = new StreamGobbler(p.getErrorStream());
+		outputGobbler = new StreamGobbler(p.getInputStream());
+		errorGobbler.start();
+		outputGobbler.start();
 		return p;
 
 	}
@@ -70,6 +76,35 @@ public class ShavaExec {
 			result = null;
 		}
 		return result.toString();
+
+	}
+
+	public String getInputStream() throws InterruptedException {
+		String result = null;
+		if (this.p != null) {
+			// outputGobbler.interrupt();
+			// errorGobbler.interrupt();
+			outputGobbler.join();
+			StringBuilder outputBuilder = outputGobbler.getOutputBuffer();
+			if (outputBuilder.length() > 0)
+				result = outputBuilder.toString();
+		}
+		return result;
+
+	}
+
+	public String getErrorStream() throws InterruptedException {
+		String result = null;
+		if (this.p != null) {
+			// outputGobbler.interrupt();
+			// errorGobbler.interrupt();
+			errorGobbler.join();
+			StringBuilder errorBuilder = errorGobbler.getOutputBuffer();
+			if (errorBuilder.length() > 0) {
+				result = errorBuilder.toString();
+			}
+		}
+		return result;
 
 	}
 
@@ -130,6 +165,16 @@ public class ShavaExec {
 		String javaCmd = javaJar() + getSlaveJar() + " -SMX " + key;
 		String[] cmd = getSshCmd(javaCmd, ordi);
 		return processCmd(cmd);
+	}
+
+	public int waitFor() throws InterruptedException {
+		if (this.p == null)
+			return 0;
+		return p.waitFor();
+	}
+
+	public Process getProcess() {
+		return this.p;
 	}
 
 }

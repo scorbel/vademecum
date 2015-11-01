@@ -64,6 +64,8 @@ public class Master {
 		} else {
 			this.splitter = new BlockSplitter(fullPathName);
 		}
+		String message = MessageFormat.format("Input File  {0} Split type {1}", filename, splitterType.name());
+		Master.logger.info(message);
 	}
 
 	public static String getOsName() {
@@ -259,13 +261,16 @@ public class Master {
 		sxToUmx();
 		while (!manager.stackEmpty()) {
 			ShavaProcess sp = manager.popJob();
-			String umxResult = sp.getOutputString();
-			sp.getProcess().waitFor();
-			if (umxResult == null) {
-				String message = MessageFormat.format("SX TO UMX failed for {0}", sp.getSlaveName());
-				Master.logger.error(message);
-			} else {
-				addToKeyUmx(sp, umxResult);
+			boolean success = popJob(sp, MappedData.Task.SX, MappedData.Task.UMX);
+			if (success) {
+				String umxResult = sp.getOutputString();
+				if (umxResult == null) {
+					String message = MessageFormat.format("SX TO UMX failed for {0}", sp.getSlaveName());
+					Master.logger.error(message);
+
+				} else {
+					addToKeyUmx(sp, umxResult);
+				}
 			}
 		}
 
@@ -273,31 +278,44 @@ public class Master {
 		umxToSmx();
 		while (!manager.stackEmpty()) {
 			ShavaProcess sp = manager.popJob();
-			String smxResult = sp.getOutputString();
-			sp.getProcess().waitFor();
-			if (smxResult == null) {
-				String message = MessageFormat.format("UMX TO SMX failed for {0} word {1}", sp.getSlaveName(),
-						sp.getId());
-				Master.logger.error(message);
-			}
+			boolean success = popJob(sp, MappedData.Task.UMX, MappedData.Task.SX);
 		}
 		// REDUCE
 		smxToRmx();
 		PrintWriter writer = new PrintWriter(new BufferedWriter(new FileWriter(getOutputFilename())));
 		while (!manager.stackEmpty()) {
 			ShavaProcess sp = manager.popJob();
-			String rmxResult = sp.getOutputString();
-			sp.getProcess().waitFor();
-			if (rmxResult == null) {
-				String message = MessageFormat.format("SMX TO RMX failed for {0} word {1}", sp.getSlaveName(),
-						sp.getId());
-				Master.logger.error(message);
-			} else {
-				writer.println(rmxResult);
+			boolean success = popJob(sp, MappedData.Task.SMX, MappedData.Task.RMX);
+			if (success) {
+				String rmxResult = sp.getOutputString();
+				if (rmxResult == null) {
+					String message = MessageFormat.format("SMX TO RMX failed for {0} word {1]", sp.getSlaveName(),
+							sp.getId());
+					Master.logger.error(message);
+				} else {
+					writer.println(rmxResult);
+				}
 			}
 		}
 		writer.close();
 
+	}
+
+	private boolean popJob(ShavaProcess sp, MappedData.Task from, MappedData.Task to)
+			throws InterruptedException, IOException {
+		sp.getProcess().waitFor();
+		String smxError = sp.getErrorString();
+		if (smxError != null) {
+			String message = MessageFormat.format("{2} TO {3} failed for {0} word {1}", sp.getSlaveName(), sp.getId(),
+					from.name(), to.name());
+			Master.logger.error(message);
+			Master.logger.error(smxError);
+			return false;
+		}
+		String message = MessageFormat.format("job {0} {1} on {2} popped", sp.getTaskType().toString(), sp.getId(),
+				sp.getSlaveName());
+		Master.logger.info(message);
+		return true;
 	}
 
 	/**

@@ -87,7 +87,7 @@ public class ShavaManager {
 			// TODO sélectionner une autre machine
 			return null;
 		}
-		ShavaProcess sp = new ShavaProcess(id, ordi, p, taskType);
+		ShavaProcess sp = new ShavaProcess(id, ordi, sexec, taskType);
 		Stack<ShavaProcess> pStack = slaves.get(ordi);
 		pStack.push(sp);
 		slaves.put(ordi, pStack);
@@ -101,9 +101,6 @@ public class ShavaManager {
 		ShavaProcess sp = shavaStack.pop();
 		Stack<ShavaProcess> pStack = slaves.get(sp.getSlaveName());
 		pStack.pop();
-		String message = MessageFormat.format("job {0} {1} on {2} popped", sp.getTaskType().toString(), sp.getId(),
-				sp.getSlaveName());
-		Master.logger.info(message);
 		return sp;
 	}
 

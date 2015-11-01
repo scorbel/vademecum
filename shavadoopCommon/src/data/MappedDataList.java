@@ -70,4 +70,8 @@ public class MappedDataList {
 		return result;
 	}
 
+	public int size() {
+		return data.size();
+	}
+
 }

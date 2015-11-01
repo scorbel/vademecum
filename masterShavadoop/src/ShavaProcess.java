@@ -8,12 +8,12 @@ public class ShavaProcess {
 	};
 
 	private String slaveName;
-	private Process process;
+	private ShavaExec process;
 	private String id;
 	private Status status;
 	private MappedData.Task taskType;
 
-	ShavaProcess(String id, String name, Process process, MappedData.Task taskType) {
+	ShavaProcess(String id, String name, ShavaExec process, MappedData.Task taskType) {
 		this.setSlaveName(name);
 		this.setId(id);
 		this.process = process;
@@ -34,7 +34,7 @@ public class ShavaProcess {
 	}
 
 	public Process getProcess() {
-		return this.process;
+		return this.process.getProcess();
 	}
 
 	public String getId() {
@@ -61,12 +61,12 @@ public class ShavaProcess {
 		this.taskType = taskType;
 	}
 
-	public String getOutputString() throws IOException {
-		ShavaExec sexec = new ShavaExec();
-		String output = sexec.getInputStream(process);
-		// String message = MessageFormat.format(" {0} {1}", id, output);
-		// Master.logger.info(message);
-		return output;
+	public String getOutputString() throws IOException, InterruptedException {
+		return this.process.getInputStream();
+	}
+
+	public String getErrorString() throws IOException, InterruptedException {
+		return this.process.getErrorStream();
 	}
 
 }

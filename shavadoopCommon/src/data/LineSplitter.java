@@ -1,4 +1,5 @@
 package data;
+
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -17,7 +18,8 @@ public class LineSplitter extends Splitter {
 
 	@Override
 	public ArrayList<String> split(String data) {
-		String[] tokens = data.split("\\W+");
+		String noNewLine = data.replaceAll("\\r?\\n", "");
+		String[] tokens = noNewLine.split("\\W+");
 		return new ArrayList<String>(Arrays.asList(tokens));
 	}
 
