@@ -1,17 +1,23 @@
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintWriter;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Properties;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import data.BlockSplitter;
+import data.LineSplitter;
 import data.MappedData;
+import data.Splitter;
 
 /**
  * La classe Master de Shavadoop propose une interface pour la simulation d'un
@@ -36,8 +42,28 @@ public class Master {
 	// Dictionnaire identifiant mot-> {(machine,process)}
 	private HashMap<String, ArrayList<String>> keyUmx = new HashMap<String, ArrayList<String>>();
 
-	public Master() {
+	private Splitter splitter = null;
+
+	private Properties properties = new Properties();
+
+	public Master() throws IOException {
 		getOsName();
+		String propFileName = "shava.properties";
+		InputStream inputStream = getClass().getClassLoader().getResourceAsStream(propFileName);
+		if (inputStream != null) {
+			properties.load(inputStream);
+		} else {
+			throw new FileNotFoundException("property file '" + propFileName + "' not found in the classpath");
+		}
+		MappedData.SplitterType splitterType = MappedData.SplitterType.LINE;
+		String filename = this.properties.getProperty("input", INPUT_FILE);
+		String fullPathName = MappedData.getDataDir() + "/" + filename;
+		if (splitterType == MappedData.SplitterType
+				.valueOf(properties.getProperty("splitMode", MappedData.SplitterType.LINE.toString()))) {
+			this.splitter = new LineSplitter(fullPathName);
+		} else {
+			this.splitter = new BlockSplitter(fullPathName);
+		}
 	}
 
 	public static String getOsName() {
@@ -154,37 +180,33 @@ public class Master {
 	/**
 	 * MAPPING
 	 * 
-	 * Pour chaque bloc du fichier d'entrée, création d'un fichier SX<id>.txt Le
-	 * fichier est envoyé pour traitement sur la première machine disponible en
-	 * vue de produite un fichier UMX. On enregistre l'id de l'UMX dans le
-	 * dictionnaire umxMachine.
+	 * Pour chaque bloc du fichier d'entrée du splitter, création d'un fichier
+	 * SX<id>.txt Le fichier est envoyé pour traitement sur la première machine
+	 * disponible en vue de produite un fichier UMX. On enregistre l'id de l'UMX
+	 * dans le dictionnaire umxMachine.
 	 * 
 	 * Le fichier SX<id>.txt comporte un bloc de données.
 	 * 
 	 * Le fichier UMX<id>.txt comporte sur chaque ligne un mot et le chiffre 1,
 	 * ces deux informations étant séparées par un espace.
 	 * 
-	 * @param filename
-	 *            Fichier contenant le texte à traiter
 	 */
-	public void sxToUmx(String filename) throws IOException {
-		BufferedReader reader = new BufferedReader(new FileReader(filename));
-		String line;
-		while ((line = reader.readLine()) != null) {
-			// TODO introduire un splitter
-			line = line.trim();
-			if (line.length() == 0)
+	public void sxToUmx() throws IOException {
+		String block;
+		while ((block = this.splitter.readBlock()) != null) {
+			block = block.trim();
+			if (block.length() == 0)
 				continue;
-			logger.info(line);
+			logger.info(block);
 			String id = MappedData.getId();
 			PrintWriter writer = new PrintWriter(new BufferedWriter(new FileWriter(MappedData.getSxFullNameFile(id))));
-			writer.println(line);
+			writer.println(block);
 			writer.close();
 			String ordi = manager.pushJob(id, null, MappedData.Task.SX);
 			this.umxMachine.put(id, ordi);
 
 		}
-		reader.close();
+		this.splitter.close();
 
 	}
 
@@ -234,7 +256,7 @@ public class Master {
 
 	public void AM() throws IOException, InterruptedException {
 		// MAP
-		sxToUmx(getInputFilename());
+		sxToUmx();
 		while (!manager.stackEmpty()) {
 			ShavaProcess sp = manager.popJob();
 			String umxResult = sp.getOutputString();
@@ -282,8 +304,9 @@ public class Master {
 	 * @param args
 	 */
 	public static void main(String[] args) {
-		Master master = new Master();
 		try {
+			Master master = new Master();
+
 			int countMachine = master.getRunningMachines(master.getMachinesNameFile());
 			if (countMachine == 0) {
 				Master.logger.error("No slave available");

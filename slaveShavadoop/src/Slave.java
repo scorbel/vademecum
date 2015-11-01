@@ -1,27 +1,47 @@
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintWriter;
 import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.text.MessageFormat;
 import java.util.ArrayList;
+import java.util.Properties;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import data.BlockSplitter;
+import data.LineSplitter;
 import data.MappedData;
+import data.MappedData.SplitterType;
 import data.MappedDataList;
+import data.Splitter;
 
 public class Slave {
 	public static Logger logger = LoggerFactory.getLogger("slaveShavadoop.src.Slave");
 
 	private String name;
 
-	public Slave() throws UnknownHostException {
+	private Properties properties = new Properties();
+
+	private SplitterType splitterType = SplitterType.LINE;
+
+	public Slave() throws IOException {
 		name = InetAddress.getLocalHost().getHostName();
+		String propFileName = "shava.properties";
+		InputStream inputStream = getClass().getClassLoader().getResourceAsStream(propFileName);
+		if (inputStream != null) {
+			properties.load(inputStream);
+		} else {
+			throw new FileNotFoundException("property file '" + propFileName + "' not found in the classpath");
+		}
+		this.splitterType = MappedData.SplitterType
+				.valueOf(properties.getProperty("splitMode", MappedData.SplitterType.LINE.toString()));
+
 	}
 
 	/**
@@ -38,14 +58,19 @@ public class Slave {
 	 *             Exception si problème de lecture
 	 */
 	private MappedDataList splitBlockFromFile(String filename) throws IOException {
-		BufferedReader reader = new BufferedReader(new FileReader(filename));
-		String line;
-		MappedDataList dataList = new MappedDataList();
-		while ((line = reader.readLine()) != null) {
-			String block = line.trim();
-			dataList.addLine(block);
+		Splitter splitter = null;
+		if (splitterType == SplitterType.LINE) {
+			splitter = new LineSplitter(filename);
+		} else {
+			splitter = new BlockSplitter(filename);
 		}
-		reader.close();
+		String block = splitter.readBlock();
+		ArrayList<String> words = splitter.split(block);
+		MappedDataList dataList = new MappedDataList();
+		for (String word : words) {
+			dataList.add(new MappedData(word, 1));
+		}
+		splitter.close();
 		return dataList;
 	}
 
@@ -214,7 +239,7 @@ public class Slave {
 					printUsage();
 
 				}
-			} catch (UnknownHostException e1) {
+			} catch (Exception e1) {
 				logger.error("Call to slave failed", e1);
 			}
 		}

@@ -20,7 +20,7 @@ public class MappedDataList {
 		}
 	}
 
-	private void add(MappedData mData) {
+	public void add(MappedData mData) {
 		data.add(mData);
 	}
 

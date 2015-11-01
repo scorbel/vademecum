@@ -12,6 +12,10 @@ public class MappedData implements Comparable<MappedData> {
 		SX, UMX, SMX, RMX
 	};
 
+	public enum SplitterType {
+		LINE, BLOCK
+	}
+
 	public static String getDataDir() {
 		return System.getProperty("user.home") + "/" + DATA;
 	}
