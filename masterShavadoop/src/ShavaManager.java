@@ -7,11 +7,15 @@ import java.io.PrintWriter;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Random;
 import java.util.Stack;
 
 import data.MappedData;
 
 public class ShavaManager {
+	private int maxProcess = 20;
+
 	public String getRunningMachinesNameFile() {
 		return MappedData.getDataDir() + "/" + Master.RUNNING_MACHINES_FILE;
 	}
@@ -19,8 +23,8 @@ public class ShavaManager {
 	HashMap<String, Stack<ShavaProcess>> slaves = new HashMap<String, Stack<ShavaProcess>>();
 	Stack<ShavaProcess> shavaStack = new Stack<ShavaProcess>();
 
-	public ShavaManager() {
-
+	public ShavaManager(int maxProcess) {
+		this.maxProcess = maxProcess;
 	}
 
 	public String getFirstAvailableSlave() {
@@ -32,7 +36,10 @@ public class ShavaManager {
 			}
 		}
 		if (result == null) {
-			return slaves.keySet().iterator().next();
+			Random random = new Random();
+			List<String> keys = new ArrayList<String>(slaves.keySet());
+			String randomKey = keys.get(random.nextInt(keys.size()));
+			return randomKey;
 		}
 		return (result);
 
@@ -48,7 +55,7 @@ public class ShavaManager {
 		while ((line = reader.readLine()) != null) {
 			String ordi = line.trim();
 			String[] cmd = sexec.getSshCmd("hostname", ordi);
-			if (sexec.processCmd(cmd, false, true) == 1) {
+			if (sexec.processCmd(cmd, false, true) != null) {
 				slaves.put(ordi, new Stack<ShavaProcess>());
 				writer.println(ordi);
 				result++;
@@ -62,6 +69,9 @@ public class ShavaManager {
 	}
 
 	public String pushJob(String id, ArrayList<String> argList, MappedData.Task taskType) {
+		if (this.shavaStack.size() > this.maxProcess) {
+			return null;
+		}
 		String ordi = getFirstAvailableSlave();
 		ShavaExec sexec = new ShavaExec();
 		Process p = null;

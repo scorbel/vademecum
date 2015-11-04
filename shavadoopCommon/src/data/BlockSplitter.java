@@ -1,6 +1,8 @@
 package data;
+
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.text.BreakIterator;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -46,7 +48,7 @@ public class BlockSplitter extends Splitter {
 
 	private String inWords = null;
 
-	public BlockSplitter(String filename) throws FileNotFoundException {
+	public BlockSplitter(String filename) throws FileNotFoundException, UnsupportedEncodingException {
 		super(filename);
 	}
 

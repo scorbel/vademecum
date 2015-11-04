@@ -108,19 +108,19 @@ public class ShavaExec {
 
 	}
 
-	public int processCmd(String[] cmd, boolean echo, boolean wait) {
+	public String processCmd(String[] cmd, boolean echo, boolean wait) {
 		try {
 			Process p = processCmd(cmd);
 			if (wait)
 				p.waitFor();
-			return getInputStream(echo, p);
+			return getInputStream();
 
 		} catch (IOException e) {
 			e.printStackTrace();
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
-		return 0;
+		return null;
 
 	}
 
@@ -137,7 +137,7 @@ public class ShavaExec {
 		return 0;
 	}
 
-	public int callMachine(String ordi, boolean wait) {
+	public String callMachine(String ordi, boolean wait) {
 		String javaCmd = javaJar() + getSlaveJar();
 		String[] cmd = getSshCmd(javaCmd, ordi);
 		return processCmd(cmd, true, wait);

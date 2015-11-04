@@ -1,11 +1,14 @@
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import java.io.Writer;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -34,13 +37,20 @@ public class Master {
 	private static String INPUT_FILE = "input.txt";
 	private static String OUTPUT_FILE = "output.txt";
 	private static String OS = null;
-	private ShavaManager manager = new ShavaManager();
+	private ShavaManager manager = null;
 
 	// Dictionnaire identifiant UMX-> (machine,process)
 	private HashMap<String, String> umxMachine = new HashMap<String, String>();
 
 	// Dictionnaire identifiant mot-> {(machine,process)}
 	private HashMap<String, ArrayList<String>> keyUmx = new HashMap<String, ArrayList<String>>();
+	// Index sur les mots utilisés dans les phases de shuffle et reduce dans le
+	// cas où la limite de
+	// la taille de la pile est atteinte
+	private ArrayList<String> keyindex = new ArrayList<String>();
+
+	// Mots en erreur
+	private ArrayList<String> keyError = new ArrayList<String>();
 
 	private Splitter splitter = null;
 
@@ -64,8 +74,16 @@ public class Master {
 		} else {
 			this.splitter = new BlockSplitter(fullPathName);
 		}
+		String customMaxProcess = this.properties.getProperty("maxProcess");
+		int maxProcess = 20;
+		if (customMaxProcess != null && customMaxProcess.length() > 0) {
+			maxProcess = Integer.parseInt(customMaxProcess);
+		}
+		manager = new ShavaManager(maxProcess);
+
 		String message = MessageFormat.format("Input File  {0} Split type {1}", filename, splitterType.name());
 		Master.logger.info(message);
+		Master.logger.info(MessageFormat.format("Max processes  {0}", maxProcess));
 	}
 
 	public static String getOsName() {
@@ -123,7 +141,7 @@ public class Master {
 		if ((line = reader.readLine()) != null) {
 			String ordi = line.trim();
 			ShavaExec sexec = new ShavaExec();
-			if (sexec.callMachine(ordi, true) == 1) {
+			if (sexec.callMachine(ordi, true) != null) {
 				System.out.println("tout est fini");
 			}
 
@@ -138,7 +156,7 @@ public class Master {
 		ShavaExec sexec = new ShavaExec();
 		while ((line = reader.readLine()) != null) {
 			String ordi = line.trim();
-			if (sexec.callMachine(ordi, true) == 1) {
+			if (sexec.callMachine(ordi, true) != null) {
 				System.out.println("tout est fini");
 			}
 
@@ -165,6 +183,7 @@ public class Master {
 				ArrayList<String> umxList = keyUmx.get(token);
 				if (umxList == null) {
 					umxList = new ArrayList<String>();
+					this.keyindex.add(token);
 				}
 				umxList.add(sp.getId());
 				keyUmx.put(token, umxList);
@@ -192,8 +211,10 @@ public class Master {
 	 * Le fichier UMX<id>.txt comporte sur chaque ligne un mot et le chiffre 1,
 	 * ces deux informations étant séparées par un espace.
 	 * 
+	 * @throws InterruptedException
+	 * 
 	 */
-	public void sxToUmx() throws IOException {
+	public void sxToUmx() throws IOException, InterruptedException {
 		String block;
 		while ((block = this.splitter.readBlock()) != null) {
 			block = block.trim();
@@ -201,15 +222,38 @@ public class Master {
 				continue;
 			logger.info(block);
 			String id = MappedData.getId();
-			PrintWriter writer = new PrintWriter(new BufferedWriter(new FileWriter(MappedData.getSxFullNameFile(id))));
-			writer.println(block);
-			writer.close();
+			Writer writer = new OutputStreamWriter(new FileOutputStream(MappedData.getSxFullNameFile(id)), "UTF-8");
+			BufferedWriter bufferWriter = new BufferedWriter(writer);
+			bufferWriter.write(block);
+			bufferWriter.close();
 			String ordi = manager.pushJob(id, null, MappedData.Task.SX);
-			this.umxMachine.put(id, ordi);
+			if (ordi == null) {
+				popSxToUmx();
+			} else {
+				this.umxMachine.put(id, ordi);
+			}
 
 		}
 		this.splitter.close();
+		popSxToUmx();
 
+	}
+
+	private void popSxToUmx() throws InterruptedException, IOException {
+		while (!manager.stackEmpty()) {
+			ShavaProcess sp = manager.popJob();
+			boolean success = popJob(sp, MappedData.Task.SX, MappedData.Task.UMX);
+			if (success) {
+				String umxResult = sp.getOutputString();
+				if (umxResult == null) {
+					String message = MessageFormat.format("SX TO UMX failed for {0}", sp.getSlaveName());
+					Master.logger.error(message);
+
+				} else {
+					addToKeyUmx(sp, umxResult);
+				}
+			}
+		}
 	}
 
 	/**
@@ -226,18 +270,64 @@ public class Master {
 	 * 
 	 * Le fichier SMX<mot>.txt comporte sur chaque ligne le mot et le chiffre 1
 	 * (une ligne par occurrence trouvée)
+	 * 
+	 * @param startIndex
+	 *            Indice d'entrée dans l'index keyIndex
+	 * 
+	 * @return l'indice du dernier élément de l'index keyIndex traité (cas où la
+	 *         pile de process est pleine) la taille de l'index sinon
 	 */
-	public void umxToSmx() {
-		for (String key : this.keyUmx.keySet()) {
-			manager.pushJob(key, this.keyUmx.get(key), MappedData.Task.UMX);
+	public int umxToSmx(int startIndex) {
+		boolean fullStack = false;
+		int returnIndex = startIndex;
+		for (int i = startIndex; i < this.keyindex.size() && !fullStack; i++) {
+			String key = this.keyindex.get(i);
+			String ordi = manager.pushJob(key, this.keyUmx.get(key), MappedData.Task.UMX);
+			if (ordi == null) {
+				fullStack = true;
+				returnIndex = i - 1;
+			} else {
+				returnIndex = i;
+			}
+
 		}
+		return returnIndex;
 	}
 
-	public void smxToRmx() {
-		for (String key : this.keyUmx.keySet()) {
-			manager.pushJob(key, null, MappedData.Task.SMX);
+	/**
+	 * REDUCE
+	 * 
+	 * Production d'un fichier RMX<key>.txt aggrégeant le nombre d'occurrences
+	 * contenues dans le fichier SMX<key>.txt
+	 * 
+	 * Le fichier SMX<key>.txt comporte sur chaque ligne le mot et le chiffre 1
+	 * (une ligne par occurrence)
+	 * 
+	 * Le fichier RMX<key>.txt comporte une seule ligne : le mot et le nombre
+	 * total d'occurrence
+	 * 
+	 * @param startIndex
+	 *            Indice d'entrée dans l'index keyIndex
+	 * 
+	 * @return l'indice du dernier élément de l'index keyIndex traité (cas où la
+	 *         pile de process est pleine) la taille de l'index sinon
+	 */
+	public int smxToRmx(int startIndex) {
+		boolean fullStack = false;
+		int returnIndex = startIndex;
+		for (int i = startIndex; i < this.keyindex.size() && !fullStack; i++) {
+			String key = this.keyindex.get(i);
+			if (this.keyError.contains(key))
+				continue;
+			String ordi = manager.pushJob(key, null, MappedData.Task.SMX);
+			if (ordi == null) {
+				fullStack = true;
+				returnIndex = i - 1;
+			} else {
+				returnIndex = i;
+			}
 		}
-
+		return returnIndex;
 	}
 
 	/**
@@ -259,44 +349,43 @@ public class Master {
 	public void AM() throws IOException, InterruptedException {
 		// MAP
 		sxToUmx();
-		while (!manager.stackEmpty()) {
-			ShavaProcess sp = manager.popJob();
-			boolean success = popJob(sp, MappedData.Task.SX, MappedData.Task.UMX);
-			if (success) {
-				String umxResult = sp.getOutputString();
-				if (umxResult == null) {
-					String message = MessageFormat.format("SX TO UMX failed for {0}", sp.getSlaveName());
-					Master.logger.error(message);
-
-				} else {
-					addToKeyUmx(sp, umxResult);
-				}
-			}
-		}
 
 		// SHUFFLE
-		umxToSmx();
-		while (!manager.stackEmpty()) {
-			ShavaProcess sp = manager.popJob();
-			boolean success = popJob(sp, MappedData.Task.UMX, MappedData.Task.SX);
-		}
-		// REDUCE
-		smxToRmx();
-		PrintWriter writer = new PrintWriter(new BufferedWriter(new FileWriter(getOutputFilename())));
-		while (!manager.stackEmpty()) {
-			ShavaProcess sp = manager.popJob();
-			boolean success = popJob(sp, MappedData.Task.SMX, MappedData.Task.RMX);
-			if (success) {
-				String rmxResult = sp.getOutputString();
-				if (rmxResult == null) {
-					String message = MessageFormat.format("SMX TO RMX failed for {0} word {1]", sp.getSlaveName(),
-							sp.getId());
-					Master.logger.error(message);
-				} else {
-					writer.println(rmxResult);
+		int index = 0;
+		while (index < this.keyindex.size()) {
+			index = umxToSmx(index);
+			while (!manager.stackEmpty()) {
+				ShavaProcess sp = manager.popJob();
+				boolean success = popJob(sp, MappedData.Task.UMX, MappedData.Task.SX);
+				if (!success) {
+					this.keyError.add(sp.getId());
 				}
 			}
+			index++;
 		}
+		// REDUCE
+		index = 0;
+		PrintWriter writer = new PrintWriter(new BufferedWriter(new FileWriter(getOutputFilename())));
+		while (index < this.keyindex.size()) {
+			index = smxToRmx(index);
+			while (!manager.stackEmpty()) {
+				ShavaProcess sp = manager.popJob();
+				boolean success = popJob(sp, MappedData.Task.SMX, MappedData.Task.RMX);
+				if (success) {
+					String rmxResult = sp.getOutputString();
+					if (rmxResult == null) {
+						String message = MessageFormat.format("SMX TO RMX failed for {0} word {1]", sp.getSlaveName(),
+								sp.getId());
+						Master.logger.error(message);
+					} else {
+						writer.println(rmxResult);
+					}
+				}
+			}
+			index++;
+		}
+		String message = MessageFormat.format("{0} words in {1}", this.keyindex.size(), OUTPUT_FILE);
+		Master.logger.error(message);
 		writer.close();
 
 	}

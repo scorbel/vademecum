@@ -1,11 +1,13 @@
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.FileWriter;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.PrintWriter;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
 import java.net.InetAddress;
 import java.text.MessageFormat;
 import java.util.ArrayList;
@@ -95,9 +97,10 @@ public class Slave {
 	 */
 	private void sxToUmx(String id) throws IOException {
 		MappedDataList dataList = splitBlockFromFile(MappedData.getSxFullNameFile(id));
-		PrintWriter writer = new PrintWriter(new BufferedWriter(new FileWriter(MappedData.getUmxFullNameFile(id))));
-		writer.println(dataList);
-		writer.close();
+		Writer writer = new OutputStreamWriter(new FileOutputStream(MappedData.getUmxFullNameFile(id)), "UTF-8");
+		BufferedWriter bufferWriter = new BufferedWriter(writer);
+		bufferWriter.write(dataList.toString());
+		bufferWriter.close();
 		System.out.print(dataList.getKeys());
 		String message = MessageFormat.format("Mapping {0}", id);
 		logger.info(message);
@@ -125,18 +128,20 @@ public class Slave {
 	// Attention on peut avoir plusieurs process qui veulent accéder au même
 	// fichier
 	private synchronized void umxToSmx(String key, ArrayList<String> umxList) throws IOException {
-		PrintWriter writer = new PrintWriter(new BufferedWriter(new FileWriter(MappedData.getSmxFullNameFile(key))));
+		Writer writer = new OutputStreamWriter(new FileOutputStream(MappedData.getSmxFullNameFile(key)), "UTF-8");
+		BufferedWriter bufferWriter = new BufferedWriter(writer);
 		MappedDataList mappedDataList = null;
 		for (String umx : umxList) {
-			BufferedReader reader = new BufferedReader(new FileReader(MappedData.getUmxFullNameFile(umx)));
+			BufferedReader reader = new BufferedReader(
+					new InputStreamReader(new FileInputStream(MappedData.getUmxFullNameFile(umx)), "UTF-8"));
 			mappedDataList = MappedDataList.createAndFilterFrom(reader, key);
 			if (mappedDataList != null) {
-				writer.write(mappedDataList.toString());
-				writer.write(System.lineSeparator());
+				bufferWriter.write(mappedDataList.toString());
+				bufferWriter.write(System.lineSeparator());
 			}
 			reader.close();
 		}
-		writer.close();
+		bufferWriter.close();
 		String message = MessageFormat.format("Shuffling {0} count {1}", key,
 				mappedDataList == null ? 0 : mappedDataList.size());
 		logger.info(message);
@@ -157,12 +162,14 @@ public class Slave {
 	 * @throws IOException
 	 */
 	private void smxToRmx(String key) throws IOException {
-		PrintWriter writer = new PrintWriter(new BufferedWriter(new FileWriter(MappedData.getRmxFullNameFile(key))));
-		BufferedReader reader = new BufferedReader(new FileReader(MappedData.getSmxFullNameFile(key)));
+		Writer writer = new OutputStreamWriter(new FileOutputStream(MappedData.getRmxFullNameFile(key)), "UTF-8");
+		BufferedWriter bufferWriter = new BufferedWriter(writer);
+		BufferedReader reader = new BufferedReader(
+				new InputStreamReader(new FileInputStream(MappedData.getSmxFullNameFile(key)), "UTF-8"));
 		MappedData mdata = MappedData.createAndSumFrom(key, reader);
-		writer.write(mdata.toString());
+		bufferWriter.write(mdata.toString());
 		reader.close();
-		writer.close();
+		bufferWriter.close();
 		System.out.print(mdata.toString());
 		String message = MessageFormat.format("Reduce {0}", key);
 		logger.info(message);

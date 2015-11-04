@@ -2,12 +2,13 @@ package data;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Arrays;
 
 public class LineSplitter extends Splitter {
 
-	public LineSplitter(String filename) throws FileNotFoundException {
+	public LineSplitter(String filename) throws FileNotFoundException, UnsupportedEncodingException {
 		super(filename);
 	}
 
